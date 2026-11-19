@@ -1401,6 +1401,8 @@ const Store={
 /* ============ UTILS ============ */
 function $(s){return document.querySelector(s)}
 function $$(s){return document.querySelectorAll(s)}
+// 本地时区日期（YYYY-MM-DD）。用 setDate 做日历偏移，规避 UTC 时区偏差与夏令时问题。
+function localDate(off=0){const d=new Date();d.setDate(d.getDate()+off);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function toast(msg,type='info'){
   const c=$('#toastContainer');
   const d=document.createElement('div');
@@ -1584,7 +1586,7 @@ let interviews=Store.get('interviews',[]);
 /* 首次进入预置一组完整求职状态，方便直接体验工作台。
    仅当投递、面试、任务都为空时写入，不覆盖用户已有数据。 */
 if(!apps.length && !interviews.length && !tasks.length){
-  const iso=off=>new Date(Date.now()+off*864e5).toISOString().slice(0,10);
+  const iso=off=>localDate(off);
   apps=[
     {company:'星云科技',position:'产品运营',date:iso(-6),status:'interview',channel:'内推',nextStep:'今天完成一面案例复盘',note:'重点梳理项目成果和个人贡献',sample:true},
     {company:'远景网络',position:'用户增长',date:iso(-4),status:'viewed',channel:'BOSS直聘',nextStep:'2天后若无反馈，主动跟进HR',note:'关注岗位对增长实验和数据分析的要求',sample:true},
@@ -1747,7 +1749,7 @@ function renderFunnel(rows=opportunityRows()){
 /* 今日提醒：面试 + Offer签约截止 */
 function renderReminders(){
   const c=$('#dashReminders');if(!c)return;
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDate();
   const list=[];
   // 面试提醒（未过未取消，7天内）
   interviews.forEach((iv,i)=>{
@@ -1824,7 +1826,7 @@ function renderPrepareHub(){
   if($('#prepareMockMeta'))$('#prepareMockMeta').textContent=mockHistory.length+'题';
 }
 function openAddAppModal(editIdx){
-  const today=new Date().toISOString().slice(0,10);const a=editIdx!=null?apps[editIdx]:{company:'',position:'',date:today,status:'applied',channel:'',nextStep:'',note:''};
+  const today=localDate();const a=editIdx!=null?apps[editIdx]:{company:'',position:'',date:today,status:'applied',channel:'',nextStep:'',note:''};
   openModal(`<h3>${editIdx!=null?'编辑求职机会':'添加求职机会'}</h3><div class="form-group"><label>公司名称</label><input type="text" id="mAppCompany" value="${a.company||''}" placeholder="如：字节跳动"></div><div class="form-group"><label>岗位名称</label><input type="text" id="mAppPos" value="${a.position||''}" placeholder="如：产品经理"></div><div class="form-row"><div class="form-group"><label>投递日期</label><input type="date" id="mAppDate" value="${a.date||today}"></div><div class="form-group"><label>当前状态</label><select id="mAppStatus"><option value="applied" ${a.status==='applied'?'selected':''}>已投递</option><option value="viewed" ${a.status==='viewed'?'selected':''}>已查看/已沟通</option><option value="interview" ${a.status==='interview'?'selected':''}>面试中</option><option value="offer" ${a.status==='offer'?'selected':''}>Offer</option><option value="rejected" ${a.status==='rejected'?'selected':''}>未通过</option><option value="archived" ${a.status==='archived'?'selected':''}>已归档</option></select></div></div><div class="form-group"><label>投递渠道</label><select id="mAppChannel"><option value="" ${!a.channel?'selected':''}>未填写</option>${['BOSS直聘','内推','猎聘','拉勾','官网','猎头','其他'].map(x=>`<option value="${x}" ${a.channel===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="form-group"><label>下一步</label><input type="text" id="mAppNext" value="${a.nextStep||''}" placeholder="如：周五前跟进HR / 准备一面案例"></div><div class="form-group"><label>备注（选填）</label><textarea id="mAppNote" rows="2" placeholder="内推人、岗位重点、沟通记录等">${a.note||''}</textarea></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveApp(${editIdx==null?-1:editIdx})">保存</button></div>`);
 }
 function saveApp(idx=-1){
@@ -1838,7 +1840,7 @@ function deleteApp(i){apps.splice(i,1);Store.set('applications',apps);refreshDas
 function renderTasks(){
   const c=$('#dashTasks');
   if(!c)return;
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDate();
   const todayTodos=tasks.filter(t=>t.date===today);
   if(!todayTodos.length){c.innerHTML='<div style="text-align:center;color:var(--tx3);padding:16px;font-size:13px">今天还没有任务，加一个吧 ✨</div>';return}
   c.innerHTML=todayTodos.map(t=>{
@@ -1853,7 +1855,7 @@ function renderTasks(){
 function addTask(){
   const inp=$('#taskInput');const text=inp.value.trim();
   if(!text){toast('先输入任务内容','err');return}
-  tasks.push({text,done:false,date:new Date().toISOString().slice(0,10)});
+  tasks.push({text,done:false,date:localDate()});
   Store.set('tasks',tasks);inp.value='';renderTasks();renderReminders();toast('待办已添加','ok');
 }
 function toggleTask(i){tasks[i].done=!tasks[i].done;Store.set('tasks',tasks);renderTasks();refreshDemoBanner()}
@@ -1887,7 +1889,7 @@ function renderCal(){
   const first=new Date(y,m,1).getDay();
   const days=new Date(y,m+1,0).getDate();
   const prevDays=new Date(y,m,0).getDate();
-  const todayStr=new Date().toISOString().slice(0,10);
+  const todayStr=localDate();
   let html='';
   ['日','一','二','三','四','五','六'].forEach(d=>html+=`<div class="cal-head">${d}</div>`);
   for(let i=first-1;i>=0;i--)html+=`<div class="cal-day other-month">${prevDays-i}</div>`;
@@ -1940,7 +1942,7 @@ const KOI_MINI=[
   {t:'逆势翻盘',v:'看似没戏的机会会反转',tip:'宜：给上周没回复的HR发一封礼貌的跟进信',cls:'badge-ok'}
 ];
 function drawKoi(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDate();
   const cached=Store.get('koi_'+today,null);
   if(cached){showKoi(cached);return}
   const fish=$('#koiFish');
@@ -3121,7 +3123,7 @@ function advanceIv(i,nodeStage){
   setIvStage(i,target);
 }
 function openAddIvModal(editIdx){
-  const iv=editIdx!=null?interviews[editIdx]:{company:'',position:'',date:new Date().toISOString().slice(0,10),time:'10:00',type:'onsite',stage:'wait',deadline:'',notes:''};
+  const iv=editIdx!=null?interviews[editIdx]:{company:'',position:'',date:localDate(),time:'10:00',type:'onsite',stage:'wait',deadline:'',notes:''};
   const curStage=ivStage(iv);
   openModal(`
     <h3>${editIdx!=null?'✏️ 编辑面试':'➕ 添加面试'}</h3>
@@ -3211,7 +3213,7 @@ function renderInterviews(){
   const c=$('#ivList');if(!c)return;
   const filter=$('#filterStage')?.value||'all';
   let list=interviews.map((iv,i)=>({iv,i})).filter(x=>filter==='all'||ivStage(x.iv)===filter);
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDate();
   list.sort((a,b)=>{
     const sa=ivStage(a.iv),sb=ivStage(b.iv);
     const live=s=>s==='fail'?1:0;
