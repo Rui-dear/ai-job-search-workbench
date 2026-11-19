@@ -1395,7 +1395,7 @@ select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(236,72,153,.10)}
 /* ============ STORE ============ */
 const Store={
   get(k,d){try{const v=localStorage.getItem('jw_'+k);return v?JSON.parse(v):d}catch{return d}},
-  set(k,v){localStorage.setItem('jw_'+k,JSON.stringify(v))}
+  set(k,v){try{localStorage.setItem('jw_'+k,JSON.stringify(v));return true}catch(e){console.error('[Store.set] 保存失败:',k,e);toast('保存失败：本地存储空间可能已满，请导出备份或清理数据','err');return false}}
 };
 
 /* ============ UTILS ============ */
