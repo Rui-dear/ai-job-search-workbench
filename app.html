@@ -1681,13 +1681,13 @@ function renderCoach(rows=opportunityRows()){
   const nearOffer=interviews.filter(iv=>ivStage(iv)==='offer'&&iv.deadline).map(iv=>({iv,d:Math.ceil((new Date(iv.deadline+'T18:00').getTime()-Date.now())/864e5)})).filter(x=>x.d>=0&&x.d<=5).sort((a,b)=>a.d-b.d)[0];
   let icon,meta,title,desc,deadline,steps,action,label,note;
   if(nearOffer){
-    icon='⚖️';meta=`${nearOffer.iv.company} · Offer待决策`;title='先把这个 Offer 的关键条件核清楚';
+    icon='⚖️';meta=`${escHtml(nearOffer.iv.company)} · Offer待决策`;title='先把这个 Offer 的关键条件核清楚';
     desc='不要只看月薪，先核对真实到手、公司风险和关键条款，再做接受或拒绝。';deadline=nearOffer.d===0?'今天截止':`还剩${nearOffer.d}天`;
     steps=['公司风险','到手收入','关键条款'];action="goPage('decision')";label='开始比较';note='截止时间优先';
   }else if(nearIv){
-    icon='🎯';meta=`${nearIv.iv.company} · ${nearIv.iv.position}`;title=`准备${nearIv.d===0?'今天':'下一场'}面试`;
+    icon='🎯';meta=`${escHtml(nearIv.iv.company)} · ${escHtml(nearIv.iv.position)}`;title=`准备${nearIv.d===0?'今天':'下一场'}面试`;
     desc='围绕这个岗位准备，不再泛刷题：先练专业题，再把简历里的项目案例和反问清单过一遍。';deadline=nearIv.d===0?'今天':`${nearIv.d}天后`;
-    steps=['岗位专业题','项目案例','反问清单'];action="goPage('interview-practice')";label='开始准备';note=nearIv.iv.time?`${nearIv.iv.time} 面试`:'近期面试';
+    steps=['岗位专业题','项目案例','反问清单'];action="goPage('interview-practice')";label='开始准备';note=nearIv.iv.time?`${escHtml(nearIv.iv.time)} 面试`:'近期面试';
   }else if(applied===0){
     icon='＋';meta='建立求职进度';title='添加第一份目标岗位';
     desc='先记录公司、岗位和投递渠道，后续面试、提醒和 Offer 都会自动挂到这条机会下。';deadline='现在';
@@ -1760,8 +1760,8 @@ function renderReminders(){
     const stLabel=STAGES.find(x=>x.k===st)?.label||'';
     list.push({
       icon:diff===0?'🔥':diff===1?'⏰':'📅',
-      title:`${iv.company} · ${iv.position}（${stLabel}）`,
-      sub:diff===0?`今天 ${iv.time||''} 面试`:`${iv.date.slice(5).replace('-','月')}日 ${iv.time||''}`,
+      title:`${escHtml(iv.company)} · ${escHtml(iv.position)}（${stLabel}）`,
+      sub:diff===0?`今天 ${escHtml(iv.time||'')} 面试`:`${iv.date.slice(5).replace('-','月')}日 ${escHtml(iv.time||'')}`,
       days:diff===0?'今天':diff<0?'已到期':diff+'天后',
       urgent:diff<=1,type:'iv'
     });
@@ -1773,7 +1773,7 @@ function renderReminders(){
     if(diff>14)return;
     list.push({
       icon:diff<0?'⚠️':'🎁',
-      title:`${iv.company} Offer待签约`,
+      title:`${escHtml(iv.company)} Offer待签约`,
       sub:`签约截止 ${iv.deadline.slice(5).replace('-','月')}日`,
       days:diff<0?'已过期':diff+'天后',
       urgent:diff<=3,type:'offer'
@@ -1804,7 +1804,7 @@ function opportunityCardHTML(r,compact=false){
   const date=r.app?.date||r.iv?.date||'';
   const channel=r.app?.channel||'';
   const next=r.app?.nextStep||(r.iv?((ivStage(r.iv)==='offer'&&r.iv.deadline)?`在 ${r.iv.deadline} 前完成Offer核查与决策`:`准备 ${r.iv.date||''} ${r.iv.time||''} 的${oppStageLabel(r)}面试`):'补一个明确的下一步动作');
-  return `<div class="opportunity-card"><div class="opp-top"><div><div class="opp-company">${r.company||'未命名公司'}</div><div class="opp-position">${r.position||'未命名岗位'}</div></div><div class="opp-date">${date?date.slice(5).replace('-','/'):'—'}</div></div><div class="opp-meta"><span class="badge ${oppBadge(r)}">${oppStageLabel(r)}</span>${channel?`<span class="badge badge-purple">${channel}</span>`:''}${r.iv?'<span class="badge badge-gold">已关联面试</span>':''}</div><div class="opp-next"><b>下一步：</b>${next}</div><div class="opp-actions">${r.appIndex>=0?`<button class="btn btn-sm" onclick="openAddAppModal(${r.appIndex})">编辑投递</button>`:''}${r.ivIndex>=0?`<button class="btn btn-sm ${compact?'':'btn-primary'}" onclick="goPage('interviews')">查看面试</button>`:''}${!compact&&r.appIndex>=0?`<button class="btn btn-ghost btn-sm" onclick="deleteApp(${r.appIndex});renderApplications()">删除</button>`:''}</div></div>`;
+  return `<div class="opportunity-card"><div class="opp-top"><div><div class="opp-company">${escHtml(r.company||'未命名公司')}</div><div class="opp-position">${escHtml(r.position||'未命名岗位')}</div></div><div class="opp-date">${date?date.slice(5).replace('-','/'):'—'}</div></div><div class="opp-meta"><span class="badge ${oppBadge(r)}">${oppStageLabel(r)}</span>${channel?`<span class="badge badge-purple">${escHtml(channel)}</span>`:''}${r.iv?'<span class="badge badge-gold">已关联面试</span>':''}</div><div class="opp-next"><b>下一步：</b>${escHtml(next)}</div><div class="opp-actions">${r.appIndex>=0?`<button class="btn btn-sm" onclick="openAddAppModal(${r.appIndex})">编辑投递</button>`:''}${r.ivIndex>=0?`<button class="btn btn-sm ${compact?'':'btn-primary'}" onclick="goPage('interviews')">查看面试</button>`:''}${!compact&&r.appIndex>=0?`<button class="btn btn-ghost btn-sm" onclick="deleteApp(${r.appIndex});renderApplications()">删除</button>`:''}</div></div>`;
 }
 function renderApplications(){
   const c=$('#applicationList');if(!c)return;
@@ -1827,7 +1827,7 @@ function renderPrepareHub(){
 }
 function openAddAppModal(editIdx){
   const today=localDate();const a=editIdx!=null?apps[editIdx]:{company:'',position:'',date:today,status:'applied',channel:'',nextStep:'',note:''};
-  openModal(`<h3>${editIdx!=null?'编辑求职机会':'添加求职机会'}</h3><div class="form-group"><label>公司名称</label><input type="text" id="mAppCompany" value="${a.company||''}" placeholder="如：字节跳动"></div><div class="form-group"><label>岗位名称</label><input type="text" id="mAppPos" value="${a.position||''}" placeholder="如：产品经理"></div><div class="form-row"><div class="form-group"><label>投递日期</label><input type="date" id="mAppDate" value="${a.date||today}"></div><div class="form-group"><label>当前状态</label><select id="mAppStatus"><option value="applied" ${a.status==='applied'?'selected':''}>已投递</option><option value="viewed" ${a.status==='viewed'?'selected':''}>已查看/已沟通</option><option value="interview" ${a.status==='interview'?'selected':''}>面试中</option><option value="offer" ${a.status==='offer'?'selected':''}>Offer</option><option value="rejected" ${a.status==='rejected'?'selected':''}>未通过</option><option value="archived" ${a.status==='archived'?'selected':''}>已归档</option></select></div></div><div class="form-group"><label>投递渠道</label><select id="mAppChannel"><option value="" ${!a.channel?'selected':''}>未填写</option>${['BOSS直聘','内推','猎聘','拉勾','官网','猎头','其他'].map(x=>`<option value="${x}" ${a.channel===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="form-group"><label>下一步</label><input type="text" id="mAppNext" value="${a.nextStep||''}" placeholder="如：周五前跟进HR / 准备一面案例"></div><div class="form-group"><label>备注（选填）</label><textarea id="mAppNote" rows="2" placeholder="内推人、岗位重点、沟通记录等">${a.note||''}</textarea></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveApp(${editIdx==null?-1:editIdx})">保存</button></div>`);
+  openModal(`<h3>${editIdx!=null?'编辑求职机会':'添加求职机会'}</h3><div class="form-group"><label>公司名称</label><input type="text" id="mAppCompany" value="${escHtml(a.company||'')}" placeholder="如：字节跳动"></div><div class="form-group"><label>岗位名称</label><input type="text" id="mAppPos" value="${escHtml(a.position||'')}" placeholder="如：产品经理"></div><div class="form-row"><div class="form-group"><label>投递日期</label><input type="date" id="mAppDate" value="${a.date||today}"></div><div class="form-group"><label>当前状态</label><select id="mAppStatus"><option value="applied" ${a.status==='applied'?'selected':''}>已投递</option><option value="viewed" ${a.status==='viewed'?'selected':''}>已查看/已沟通</option><option value="interview" ${a.status==='interview'?'selected':''}>面试中</option><option value="offer" ${a.status==='offer'?'selected':''}>Offer</option><option value="rejected" ${a.status==='rejected'?'selected':''}>未通过</option><option value="archived" ${a.status==='archived'?'selected':''}>已归档</option></select></div></div><div class="form-group"><label>投递渠道</label><select id="mAppChannel"><option value="" ${!a.channel?'selected':''}>未填写</option>${['BOSS直聘','内推','猎聘','拉勾','官网','猎头','其他'].map(x=>`<option value="${x}" ${a.channel===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="form-group"><label>下一步</label><input type="text" id="mAppNext" value="${escHtml(a.nextStep||'')}" placeholder="如：周五前跟进HR / 准备一面案例"></div><div class="form-group"><label>备注（选填）</label><textarea id="mAppNote" rows="2" placeholder="内推人、岗位重点、沟通记录等">${escHtml(a.note||'')}</textarea></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveApp(${editIdx==null?-1:editIdx})">保存</button></div>`);
 }
 function saveApp(idx=-1){
   const company=$('#mAppCompany').value.trim(),position=$('#mAppPos').value.trim();if(!company||!position){toast('请填写公司和岗位','err');return}
@@ -1847,7 +1847,7 @@ function renderTasks(){
     const gi=tasks.indexOf(t);
     return `<div class="task-item ${t.done?'done':''}" onclick="toggleTask(${gi})">
       <div class="task-check">✓</div>
-      <span class="task-text">${t.text}</span>
+      <span class="task-text">${escHtml(t.text)}</span>
       <button class="task-del" onclick="event.stopPropagation();delTask(${gi})">✕</button>
     </div>`;
   }).join('');
@@ -1922,9 +1922,9 @@ function renderCalEvents(ds){
     const st=ivStage(iv);
     const lb=STAGES.find(x=>x.k===st)?.label||'';
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bdr);font-size:13px">
-      <span style="color:var(--p);font-weight:700">${iv.time||''}</span>
-      <strong>${iv.company}</strong>
-      <span style="color:var(--tx3)">${iv.position}</span>
+      <span style="color:var(--p);font-weight:700">${escHtml(iv.time||'')}</span>
+      <strong>${escHtml(iv.company)}</strong>
+      <span style="color:var(--tx3)">${escHtml(iv.position)}</span>
       <span class="badge badge-purple" style="margin-left:auto">${lb}</span>
     </div>`;
   }).join('');
@@ -2050,15 +2050,15 @@ function parseResumeFile(file,cb){
 function handleResumeFile(input){
   const f=input.files[0];if(!f)return;
   const info=$('#atsFileInfo');
-  info.innerHTML=`<div class="upload-file">⏳ 正在解析 <span class="uf-name">${f.name}</span> ...</div>`;
+  info.innerHTML=`<div class="upload-file">⏳ 正在解析 <span class="uf-name">${escHtml(f.name)}</span> ...</div>`;
   parseResumeFile(f,(text,err)=>{
     if(err){
-      info.innerHTML=`<div class="upload-file" style="color:var(--err)">⚠️ ${err}</div>`;
+      info.innerHTML=`<div class="upload-file" style="color:var(--err)">⚠️ ${escHtml(err)}</div>`;
       toast(err,'err');return;
     }
     $('#resumeText').value=text;
     saveResume(text,f.name);
-    info.innerHTML=`<div class="upload-file"><span>📄</span><span class="uf-name">${f.name}</span><span style="color:var(--ok);font-weight:700">解析成功 ${text.length}字</span></div>`;
+    info.innerHTML=`<div class="upload-file"><span>📄</span><span class="uf-name">${escHtml(f.name)}</span><span style="color:var(--ok);font-weight:700">解析成功 ${text.length}字</span></div>`;
     toast('简历解析成功，已更新为最新简历','ok');
     refreshMockResumeHint();
   });
@@ -2336,9 +2336,9 @@ function analyzeMatch(){
         <div class="ring-wrap"><div class="ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" fill="none" stroke="#f3e0ef" stroke-width="8"/><circle cx="60" cy="60" r="52" fill="none" stroke="${ringColor}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference*(1-matchRate/100)}"/></svg><div class="ring-val"><span class="ring-num">${matchRate}%</span><span class="ring-label">${isRealJD?'JD覆盖':'通用参考'}</span></div></div></div>
         <div style="flex:1;min-width:200px"><p style="font-size:11px;color:var(--tx3);line-height:1.65;margin-bottom:7px">${isRealJD?'当前结果来自你粘贴的真实JD关键词。':'当前仅输入岗位名/短文本，使用岗位通用要求作为参考，不代表目标公司的真实JD匹配度。'}</p><p style="font-size:13px;color:var(--tx2);line-height:1.8">提取 <strong class="highlight">${jdArr.length}</strong> 个关键要求词，你的简历覆盖 <strong style="color:var(--ok)">${matched.length}</strong> 个，还有 <strong style="color:var(--err)">${missing.length}</strong> 个未体现。</p></div>
       </div>
-      ${matched.length?`<div class="section-title">已匹配关键词（${matched.length}）</div><div style="margin-bottom:14px">${matched.map(m=>`<span class="tag tag-ok">${m}</span>`).join('')}</div>`:''}
-      ${missing.length?`<div class="section-title">缺失/未体现（${missing.length}）</div><div>${missing.map(m=>`<span class="tag tag-err">${m}</span>`).join('')}</div>`:''}
-      <div style="margin-top:16px"><div class="section-title">怎么改简历</div><div class="match-advice-list">${actionable.slice(0,8).map((a,i)=>`<div class="match-advice-item"><div class="mai-head"><span class="mai-num">${i+1}</span>${a.h}</div><p>${a.p}</p></div>`).join('')}</div></div>
+      ${matched.length?`<div class="section-title">已匹配关键词（${matched.length}）</div><div style="margin-bottom:14px">${matched.map(m=>`<span class="tag tag-ok">${escHtml(m)}</span>`).join('')}</div>`:''}
+      ${missing.length?`<div class="section-title">缺失/未体现（${missing.length}）</div><div>${missing.map(m=>`<span class="tag tag-err">${escHtml(m)}</span>`).join('')}</div>`:''}
+      <div style="margin-top:16px"><div class="section-title">怎么改简历</div><div class="match-advice-list">${actionable.slice(0,8).map((a,i)=>`<div class="match-advice-item"><div class="mai-head"><span class="mai-num">${i+1}</span>${escHtml(a.h)}</div><p>${escHtml(a.p)}</p></div>`).join('')}</div></div>
       ${missing.length?`<p style="font-size:10.5px;color:var(--tx3);margin-top:10px;line-height:1.6">注意：缺失关键词只代表当前文本没有体现，不代表你一定不会。没有实际经历的能力不要为了匹配率硬写。</p>`:''}
     </div>`;
 }
@@ -3127,11 +3127,11 @@ function openAddIvModal(editIdx){
   const curStage=ivStage(iv);
   openModal(`
     <h3>${editIdx!=null?'✏️ 编辑面试':'➕ 添加面试'}</h3>
-    <div class="form-group"><label>公司名称</label><input type="text" id="mIvCompany" value="${iv.company||''}" placeholder="如：腾讯"></div>
-    <div class="form-group"><label>岗位名称</label><input type="text" id="mIvPos" value="${iv.position||''}" placeholder="如：产品经理"></div>
+    <div class="form-group"><label>公司名称</label><input type="text" id="mIvCompany" value="${escHtml(iv.company||'')}" placeholder="如：腾讯"></div>
+    <div class="form-group"><label>岗位名称</label><input type="text" id="mIvPos" value="${escHtml(iv.position||'')}" placeholder="如：产品经理"></div>
     <div class="form-row">
       <div class="form-group"><label>日期</label><input type="date" id="mIvDate" value="${iv.date||''}"></div>
-      <div class="form-group"><label>时间</label><input type="time" id="mIvTime" value="${iv.time||'10:00'}"></div>
+      <div class="form-group"><label>时间</label><input type="time" id="mIvTime" value="${escHtml(iv.time||'10:00')}"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>面试形式</label>
@@ -3149,7 +3149,7 @@ function openAddIvModal(editIdx){
       </div>
     </div>
     <div class="form-group"><label>Offer签约截止日期（拿到Offer后填写，首页会提醒）</label><input type="date" id="mIvDeadline" value="${iv.deadline||''}"></div>
-    <div class="form-group"><label>备注</label><textarea id="mIvNotes" rows="2" placeholder="面试官、注意事项等">${iv.notes||''}</textarea></div>
+    <div class="form-group"><label>备注</label><textarea id="mIvNotes" rows="2" placeholder="面试官、注意事项等">${escHtml(iv.notes||'')}</textarea></div>
     <div class="modal-actions">
       ${editIdx!=null?'<button class="btn" style="color:var(--err);border-color:var(--err)" onclick="deleteIv('+editIdx+')">删除</button>':''}
       <button class="btn" onclick="closeModal()">取消</button>
@@ -3238,8 +3238,8 @@ function renderInterviews(){
           return `<div class="iv-dl ${diff<0?'overdue':''}">🎁 签约截止 ${iv.deadline.slice(5).replace('-','/')}${diff>=0?'（'+diff+'天）':'（已过期）'}</div>`;
         })():'';
         return `<tr>
-          <td><div class="iv-co">${iv.company}</div><div class="iv-pos">${iv.position}</div>${dl}</td>
-          <td style="white-space:nowrap">${iv.date.slice(5).replace('-','/')}<br><span style="color:var(--tx3);font-size:12px">${iv.time||''}</span></td>
+          <td><div class="iv-co">${escHtml(iv.company)}</div><div class="iv-pos">${escHtml(iv.position)}</div>${dl}</td>
+          <td style="white-space:nowrap">${iv.date.slice(5).replace('-','/')}<br><span style="color:var(--tx3);font-size:12px">${escHtml(iv.time||'')}</span></td>
           <td style="white-space:nowrap">${typeMap[iv.type]?.[0]||'📌'} ${typeMap[iv.type]?.[1]||''}</td>
           <td><select class="stage-select" onchange="setIvStage(${i},this.value)">
             ${STAGES.map(s=>`<option value="${s.k}" ${st===s.k?'selected':''}>${s.label}</option>`).join('')}
@@ -3261,8 +3261,8 @@ function renderInterviews(){
         <div class="iv-date"><div class="iv-d">${d.getDate()}</div><div class="iv-m">${d.getMonth()+1}月</div></div>
         <div style="font-size:18px">${typeMap[iv.type]?.[0]||'📌'}</div>
         <div class="iv-info">
-          <h4>${iv.company} · ${iv.position}</h4>
-          <p>${iv.time} · ${typeMap[iv.type]?.[1]||''}面试 · 当前：<b style="color:var(--p)">${stLabel}</b> ${iv.notes?'· '+iv.notes:''}</p>
+          <h4>${escHtml(iv.company)} · ${escHtml(iv.position)}</h4>
+          <p>${escHtml(iv.time)} · ${typeMap[iv.type]?.[1]||''}面试 · 当前：<b style="color:var(--p)">${stLabel}</b> ${iv.notes?'· '+escHtml(iv.notes):''}</p>
           ${stageTrackHTML(i)}
           ${dl}
         </div>
@@ -3359,7 +3359,7 @@ function renderSavedOffers(){
   const cnt=$('#savedOfferCount'); if(cnt)cnt.textContent=offers.length?`${offers.length}个`:'';
   if(!offers.length){c.innerHTML='<div class="empty" style="padding:18px">还没有保存 Offer，先完成上面的第一份评分</div>';return}
   c.innerHTML=`<div class="saved-offer-list">${offers.map((o,i)=>`<div class="saved-offer">
-    <div class="saved-offer-main"><strong>${o.company}</strong><span>按当前权重综合 ${offerWeightedScore(o)} 分</span></div>
+    <div class="saved-offer-main"><strong>${escHtml(o.company)}</strong><span>按当前权重综合 ${offerWeightedScore(o)} 分</span></div>
     <div class="saved-offer-score">${offerWeightedScore(o)}</div>
     <div class="saved-offer-actions"><button class="btn btn-ghost btn-sm" onclick="editSavedOffer(${i})">编辑</button><button class="btn btn-ghost btn-sm" style="color:var(--err)" onclick="deleteSavedOffer(${i})">✕</button></div>
   </div>`).join('')}</div>`;
@@ -3389,7 +3389,7 @@ function calculateOffers(){
     const peer=results.find((_,j)=>j!==idx);
     const leadDims=peer?r.scores.map((score,i)=>({i,d:score-peer.scores[i],weight:weights[i]})).filter(x=>x.d>0).sort((a,b)=>(b.d*b.weight)-(a.d*a.weight)).slice(0,2):[];
     const strengthText=strengths.map(x=>`${CRITERIA[x.i]} ${x.score}分`).join('、');
-    const diffText=leadDims.length?`相较${peer.company}，${leadDims.map(x=>`${CRITERIA[x.i]}高${x.d}分`).join('、')}`:'与其他 Offer 差异不大';
+    const diffText=leadDims.length?`相较${escHtml(peer.company)}，${leadDims.map(x=>`${CRITERIA[x.i]}高${x.d}分`).join('、')}`:'与其他 Offer 差异不大';
     const riskText=`${CRITERIA[weakest.i]} ${weakest.score}分，是签约前最需要再确认的部分`;
     let fitText='更适合与你当前高权重维度匹配度较高的选择。';
     const top=strengths.map(x=>CRITERIA[x.i]);
@@ -3403,7 +3403,7 @@ function calculateOffers(){
     <div class="card-title"><span class="ct-icon">🏆</span>对比结果</div>
     <div style="display:flex;justify-content:center;margin-bottom:10px"><svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${[.25,.5,.75,1].map(v=>`<polygon points="${Array.from({length:6},(_,i)=>point(R*v,i).join(',')).join(' ')}" fill="none" stroke="#f6e9f2"/>`).join('')}${axisLines}${radarPolygons}</svg></div>
     <div class="offer-result-cards">${results.map((r,i)=>{const a=resultAnalysis[i];return `<div class="offer-col ${i===0?'winner':''}">
-      <div style="display:flex;justify-content:space-between;gap:6px"><strong style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.company}</strong>${i===0?'<span class="badge badge-gold" style="font-size:9px">推荐</span>':''}</div>
+      <div style="display:flex;justify-content:space-between;gap:6px"><strong style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.company)}</strong>${i===0?'<span class="badge badge-gold" style="font-size:9px">推荐</span>':''}</div>
       <div class="offer-score" style="color:${colors[i]};font-size:28px">${r.totalScore}</div>
       <div class="progress"><div class="progress-bar" style="width:${r.totalScore}%;background:${colors[i]}"></div></div>
       <div class="offer-card-analysis"><div class="oca-line"><span class="oca-label">优势：</span>${a.strengthText}</div><div class="oca-line"><span class="oca-label">对比：</span>${a.diffText}</div><div class="oca-line"><span class="oca-label">注意：</span>${a.riskText}</div><div class="offer-card-summary">${a.fitText}</div></div>
@@ -3554,8 +3554,8 @@ function renderExpenses(){
   const c=$('#expList');if(!c)return;
   c.innerHTML=expenses.map((e,i)=>`
     <div class="exp-row">
-      <input type="text" value="${e.icon}" style="flex:0 0 52px;text-align:center" onchange="updExp(${i},'icon',this.value)">
-      <input type="text" value="${e.name}" placeholder="支出名称" onchange="updExp(${i},'name',this.value)">
+      <input type="text" value="${escHtml(e.icon)}" style="flex:0 0 52px;text-align:center" onchange="updExp(${i},'icon',this.value)">
+      <input type="text" value="${escHtml(e.name)}" placeholder="支出名称" onchange="updExp(${i},'name',this.value)">
       <input type="number" class="exp-amt" value="${e.amt}" min="0" onchange="updExp(${i},'amt',+this.value)">
       <button class="exp-del" onclick="delExp(${i})" title="删除">✕</button>
     </div>`).join('');
