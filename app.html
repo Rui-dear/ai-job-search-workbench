@@ -682,6 +682,7 @@ select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(236,72,153,.10)}
 .context-dot{opacity:.6}
 .dashboard-sub{font-size:13px;color:var(--tx2);font-weight:650;line-height:1.45;margin-top:3px}
 .sample-tag{display:inline-flex;align-items:center;padding:1px 6px;border-radius:999px;background:rgba(238,79,157,.10);color:var(--p);font-size:9px;font-weight:800;margin-left:6px;vertical-align:1px}
+.demo-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-radius:var(--rs);background:linear-gradient(135deg,rgba(238,79,157,.08),rgba(168,85,247,.10));border:1px solid var(--bdr-a);color:var(--tx2);font-size:12px;margin-bottom:14px}
 /* 工作台内部导航：左侧抽屉，不占用指路侠全局底部导航 */
 .bottom-nav{display:none!important}
 .sidebar{
@@ -928,6 +929,10 @@ select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(236,72,153,.10)}
       <div class="dashboard-context">
         <div class="dashboard-date"><span id="topDate"></span><span class="context-dot">·</span><span id="topWeek"></span></div>
         <div class="dashboard-sub" id="pageSub">先看今天最该推进什么</div>
+      </div>
+      <div class="demo-banner" id="demoBanner" style="display:none">
+        <span>🧪 当前包含演示数据，可先体验完整流程</span>
+        <button class="btn btn-ghost btn-sm" onclick="confirmClearDemo()">清除演示数据</button>
       </div>
       <div class="card coach-card mb18" id="dashCoach"></div>
 
@@ -1583,24 +1588,50 @@ let apps=Store.get('applications',[]);
 let tasks=Store.get('tasks',[]);
 let interviews=Store.get('interviews',[]);
 
-/* 首次进入预置一组完整求职状态，方便直接体验工作台。
-   仅当投递、面试、任务都为空时写入，不覆盖用户已有数据。 */
-if(!apps.length && !interviews.length && !tasks.length){
+/* F0.4：旧版演示数据迁移 sample:true → isDemo:true。
+   幂等，只处理明确标记 sample:true 的记录；sample:false / 无标记 / 其他异常标记一律保留。
+   迁移用非就地 map 生成新数组，原 apps/interviews/tasks 保持原样，作为失败回滚快照。 */
+function migrateDemoFlags(){
+  let changed=false;
+  const mig=arr=>arr.map(r=>{
+    if(r && r.sample===true){changed=true;const c={...r};c.isDemo=true;delete c.sample;return c;}
+    return r;
+  });
+  const newApps=mig(apps),newIv=mig(interviews),newTasks=mig(tasks);
+  if(!changed)return true;
+  const ok1=Store.set('applications',newApps);
+  const ok2=Store.set('interviews',newIv);
+  const ok3=Store.set('tasks',newTasks);
+  if(ok1&&ok2&&ok3){apps=newApps;interviews=newIv;tasks=newTasks;return true;}
+  // 任一写入失败：回滚已成功写入的键（逐个检查返回值），内存保持原样
+  let rbFail=false;
+  if(ok1&&!Store.set('applications',apps))rbFail=true;
+  if(ok2&&!Store.set('interviews',interviews))rbFail=true;
+  if(ok3&&!Store.set('tasks',tasks))rbFail=true;
+  if(rbFail)toast('演示数据迁移失败，且恢复原数据未完全成功，数据状态可能不完整，请导出备份后重试','err');
+  else toast('演示数据迁移失败，已恢复原数据，未做任何改动','err');
+  return false;
+}
+const demoMigrated=migrateDemoFlags();
+
+/* 首次进入预置一组演示数据：仅当投递、面试、任务都为空，且用户未主动清除过演示数据时写入。
+   迁移不完整时跳过注入，避免覆盖或混淆未迁移的旧数据。 */
+if(demoMigrated && !apps.length && !interviews.length && !tasks.length && Store.get('demoCleared')!==true){
   const iso=off=>localDate(off);
   apps=[
-    {company:'星云科技',position:'产品运营',date:iso(-6),status:'interview',channel:'内推',nextStep:'今天完成一面案例复盘',note:'重点梳理项目成果和个人贡献',sample:true},
-    {company:'远景网络',position:'用户增长',date:iso(-4),status:'viewed',channel:'BOSS直聘',nextStep:'2天后若无反馈，主动跟进HR',note:'关注岗位对增长实验和数据分析的要求',sample:true},
-    {company:'拾光集团',position:'新媒体运营',date:iso(-9),status:'offer',channel:'猎聘',nextStep:'核对薪资结构、试用期和签约截止时间',note:'重点确认绩效占比与转正条件',sample:true}
+    {company:'星云科技',position:'产品运营',date:iso(-6),status:'interview',channel:'内推',nextStep:'今天完成一面案例复盘',note:'重点梳理项目成果和个人贡献',isDemo:true},
+    {company:'远景网络',position:'用户增长',date:iso(-4),status:'viewed',channel:'BOSS直聘',nextStep:'2天后若无反馈，主动跟进HR',note:'关注岗位对增长实验和数据分析的要求',isDemo:true},
+    {company:'拾光集团',position:'新媒体运营',date:iso(-9),status:'offer',channel:'猎聘',nextStep:'核对薪资结构、试用期和签约截止时间',note:'重点确认绩效占比与转正条件',isDemo:true}
   ];
   interviews=[
-    {company:'星云科技',position:'产品运营',date:iso(1),time:'14:00',type:'video',stage:'r1',deadline:'',notes:'重点准备项目复盘和数据分析题',status:'confirmed',sample:true},
-    {company:'远景网络',position:'用户增长',date:iso(4),time:'10:30',type:'onsite',stage:'wait',deadline:'',notes:'准备增长案例和渠道拆解',status:'pending',sample:true},
-    {company:'拾光集团',position:'新媒体运营',date:iso(-3),time:'15:00',type:'video',stage:'offer',deadline:iso(9),notes:'已拿Offer，等待决策',status:'completed',sample:true}
+    {company:'星云科技',position:'产品运营',date:iso(1),time:'14:00',type:'video',stage:'r1',deadline:'',notes:'重点准备项目复盘和数据分析题',status:'confirmed',isDemo:true},
+    {company:'远景网络',position:'用户增长',date:iso(4),time:'10:30',type:'onsite',stage:'wait',deadline:'',notes:'准备增长案例和渠道拆解',status:'pending',isDemo:true},
+    {company:'拾光集团',position:'新媒体运营',date:iso(-3),time:'15:00',type:'video',stage:'offer',deadline:iso(9),notes:'已拿Offer，等待决策',status:'completed',isDemo:true}
   ];
   tasks=[
-    {text:'准备星云科技一面：完成3道岗位专业题',done:false,date:iso(0),sample:true},
-    {text:'核对拾光集团Offer：薪资结构 / 试用期 / 五险一金',done:false,date:iso(0),sample:true},
-    {text:'整理一个可量化的项目案例，用STAR方式重写',done:false,date:iso(0),sample:true}
+    {text:'准备星云科技一面：完成3道岗位专业题',done:false,date:iso(0),isDemo:true},
+    {text:'核对拾光集团Offer：薪资结构 / 试用期 / 五险一金',done:false,date:iso(0),isDemo:true},
+    {text:'整理一个可量化的项目案例，用STAR方式重写',done:false,date:iso(0),isDemo:true}
   ];
   Store.set('applications',apps);
   Store.set('interviews',interviews);
@@ -1647,10 +1678,48 @@ function oppStageLabel(row){
   const m={applied:'已投递',viewed:'已查看',interview:'面试中',offer:'Offer',rejected:'未通过',archived:'已归档'};return m[row.app?.status]||'已投递';
 }
 function oppBadge(row){const st=oppStage(row);return st==='offer'?'badge-ok':st==='interview'?'badge-gold':st==='ended'?'badge-err':'badge-info'}
+function hasDemoData(){
+  return apps.some(x=>x.isDemo)||interviews.some(x=>x.isDemo)||tasks.some(x=>x.isDemo);
+}
 function refreshDemoBanner(){
   const b=$('#demoBanner');if(!b)return;
-  const hasSample=apps.some(x=>x.sample)||interviews.some(x=>x.sample)||tasks.some(x=>x.sample);
-  b.style.display=hasSample?'flex':'none';
+  b.style.display=hasDemoData()?'flex':'none';
+}
+function confirmClearDemo(){
+  openModal(`
+    <h3>清除演示数据</h3>
+    <p style="font-size:13px;color:var(--tx2);line-height:1.7;margin:10px 0 16px">将删除所有标记为「演示」的投递、面试和任务记录。你手动录入的数据不会受影响，此操作不可撤销。</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn" style="color:var(--err);border-color:var(--err)" onclick="clearDemoData()">确认清除</button>
+    </div>
+  `);
+}
+function clearDemoData(){
+  const newApps=apps.filter(x=>x.isDemo!==true);
+  const newIv=interviews.filter(x=>x.isDemo!==true);
+  const newTasks=tasks.filter(x=>x.isDemo!==true);
+  const ok1=Store.set('applications',newApps);
+  const ok2=Store.set('interviews',newIv);
+  const ok3=Store.set('tasks',newTasks);
+  const ok4=Store.set('demoCleared',true);
+  if(ok1&&ok2&&ok3&&ok4){
+    apps=newApps;interviews=newIv;tasks=newTasks;
+    closeModal();
+    toast('演示数据已清除','ok');
+    refreshDash();
+    if($('#page-applications')?.classList.contains('active'))renderApplications();
+    if($('#page-interviews')?.classList.contains('active'))renderInterviews();
+    return;
+  }
+  // 任一写入失败：回滚已成功写入的键（逐个检查返回值），内存保持原样，不设 demoCleared
+  let rbFail=false;
+  if(ok1&&!Store.set('applications',apps))rbFail=true;
+  if(ok2&&!Store.set('interviews',interviews))rbFail=true;
+  if(ok3&&!Store.set('tasks',tasks))rbFail=true;
+  if(ok4&&!Store.set('demoCleared',false))rbFail=true;
+  if(rbFail)toast('清除演示数据失败，且恢复原数据未完全成功，数据状态可能不完整，请立即导出备份并重试','err');
+  else toast('清除演示数据失败，已恢复原数据，未做任何改动','err');
 }
 function refreshDash(){
   refreshDemoBanner();
