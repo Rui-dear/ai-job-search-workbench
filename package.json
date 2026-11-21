@@ -7,6 +7,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node scripts/test-gateway.cjs"
+    "dev": "node scripts/dev-server.cjs",
+    "test": "node scripts/test-gateway.cjs && node scripts/test-frontend-ai.cjs",
+    "test:gateway": "node scripts/test-gateway.cjs",
+    "test:frontend": "node scripts/test-frontend-ai.cjs"
   }
 }
