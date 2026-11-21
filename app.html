@@ -683,6 +683,24 @@ select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(236,72,153,.10)}
 .dashboard-sub{font-size:13px;color:var(--tx2);font-weight:650;line-height:1.45;margin-top:3px}
 .sample-tag{display:inline-flex;align-items:center;padding:1px 6px;border-radius:999px;background:rgba(238,79,157,.10);color:var(--p);font-size:9px;font-weight:800;margin-left:6px;vertical-align:1px}
 .demo-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-radius:var(--rs);background:linear-gradient(135deg,rgba(238,79,157,.08),rgba(168,85,247,.10));border:1px solid var(--bdr-a);color:var(--tx2);font-size:12px;margin-bottom:14px}
+/* AI 匹配结果：来源徽标 + 结构化卡片 */
+.ai-source-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:linear-gradient(135deg,var(--p),#a855f7);color:#fff;font-size:11px;font-weight:800}
+.rule-source-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:var(--card-h);color:var(--tx2);border:1px solid var(--bdr-a);font-size:11px;font-weight:700}
+.ai-req-list{display:flex;flex-direction:column;gap:8px;margin:10px 0 16px}
+.ai-req-item{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--tx2);line-height:1.7}
+.ai-req-num{flex:none;width:20px;height:20px;border-radius:6px;background:var(--card-h);color:var(--p);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.ai-match-list,.ai-gap-list{display:flex;flex-direction:column;gap:10px;margin:10px 0 16px}
+.ai-match-item,.ai-gap-item{background:var(--card-h);border:1px solid var(--bdr-a);border-radius:var(--rs);padding:10px 12px}
+.ai-match-req,.ai-gap-req{font-size:13px;color:var(--tx);font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ai-match-evi{font-size:12px;color:var(--ok);line-height:1.7;margin-top:6px}
+.ai-gap-miss{font-size:12px;color:var(--err);line-height:1.7;margin-top:6px}
+.ai-level{font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px}
+.ai-level-high{background:rgba(46,174,103,.12);color:var(--ok)}
+.ai-level-mid{background:rgba(245,158,11,.14);color:var(--warn)}
+.ai-level-low{background:rgba(238,79,157,.12);color:var(--err)}
+.ai-iq-list{display:flex;flex-direction:column;gap:8px;margin:10px 0 4px}
+.ai-iq-item{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--tx2);line-height:1.7}
+.ai-iq-num{flex:none;font-size:11px;font-weight:800;color:var(--p);margin-top:2px}
 /* 工作台内部导航：左侧抽屉，不占用指路侠全局底部导航 */
 .bottom-nav{display:none!important}
 .sidebar{
@@ -1134,6 +1152,7 @@ select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(236,72,153,.10)}
         <div style="text-align:center;margin-bottom:18px">
           <button class="btn btn-primary" onclick="analyzeMatch()" style="padding:12px 34px;font-size:14px">🎯 分析简历 × JD匹配</button>
         </div>
+        <p style="font-size:11px;color:var(--tx3);text-align:center;line-height:1.7;margin:-8px 0 14px">🔒 隐私提示：点击分析后，简历与岗位JD内容将发送至模型服务商进行 AI 分析，请勿包含身份证号、手机号等敏感信息。</p>
         <div id="matchResult"></div>
       </div>
     </section>
@@ -2359,11 +2378,18 @@ const JD_FALLBACK={
   '人力':'招聘 培训 绩效 薪酬 员工关系 劳动法 HRBP 数据分析 面试 组织发展',
   '财务':'财务分析 预算 税务 审计 Excel ERP 成本控制 报表 资金管理 合规'
 };
-function analyzeMatch(){
-  const r=sanitizeResumeText(getResumeText()).toLowerCase();
+async function analyzeMatch(){
+  const rawResume=getResumeText();
   let j=$('#matchJd').value.trim();
   const isRealJD=j.length>=30;
-  if(r.length<30){toast('匹配分析需要先上传或粘贴简历','err');switchResTab('ats');return}
+  if(rawResume.length<30){toast('匹配分析需要先上传或粘贴简历','err');switchResTab('ats');return}
+  if(isRealJD){
+    $('#matchResult').innerHTML='<div class="card" style="text-align:center;padding:48px 0"><div style="font-size:32px;margin-bottom:10px">🤖</div><p style="color:var(--tx2);font-size:13px">AI 正在分析简历与 JD 的匹配度…</p><p style="font-size:11px;color:var(--tx3);margin-top:8px">通常需要几秒，请稍候</p></div>';
+    const ai=await tryAIMatch(rawResume,j);
+    if(ai&&ai.ok){renderAIMatch(ai.data);return}
+    if(ai&&!ai.ok)toast('AI 分析不可用（'+(AI_ERR_TEXT[ai.reason]||ai.reason)+'），已使用本地规则分析','warn');
+  }
+  const r=sanitizeResumeText(rawResume).toLowerCase();
   if(j.length<30){
     const hit=Object.keys(JD_FALLBACK).find(k=>j.toLowerCase().includes(k));
     j=(j?j+' ':'')+(hit?JD_FALLBACK[hit]:'沟通能力 项目管理 数据分析 团队协作 执行能力 行业经验 办公软件 PPT Excel 结果导向');
@@ -2400,6 +2426,10 @@ function analyzeMatch(){
   actionable.push({h:'精简无关内容',p:'与目标岗位关系弱的经历、重复自我评价和泛化软技能往后放或删除，把有限篇幅留给JD最看重的项目、成果和能力。'});
 
   $('#matchResult').innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="rule-source-badge">⚙️ 规则兜底分析 · 非 AI</div>
+      <span style="font-size:11px;color:var(--tx3)">未调用模型，结果来自本地关键词规则</span>
+    </div>
     <div class="card">
       <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
         <div class="ring-wrap"><div class="ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" fill="none" stroke="#f3e0ef" stroke-width="8"/><circle cx="60" cy="60" r="52" fill="none" stroke="${ringColor}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference*(1-matchRate/100)}"/></svg><div class="ring-val"><span class="ring-num">${matchRate}%</span><span class="ring-label">${isRealJD?'JD覆盖':'通用参考'}</span></div></div></div>
@@ -2409,6 +2439,63 @@ function analyzeMatch(){
       ${missing.length?`<div class="section-title">缺失/未体现（${missing.length}）</div><div>${missing.map(m=>`<span class="tag tag-err">${escHtml(m)}</span>`).join('')}</div>`:''}
       <div style="margin-top:16px"><div class="section-title">怎么改简历</div><div class="match-advice-list">${actionable.slice(0,8).map((a,i)=>`<div class="match-advice-item"><div class="mai-head"><span class="mai-num">${i+1}</span>${escHtml(a.h)}</div><p>${escHtml(a.p)}</p></div>`).join('')}</div></div>
       ${missing.length?`<p style="font-size:10.5px;color:var(--tx3);margin-top:10px;line-height:1.6">注意：缺失关键词只代表当前文本没有体现，不代表你一定不会。没有实际经历的能力不要为了匹配率硬写。</p>`:''}
+    </div>`;
+}
+
+const AI_ERR_TEXT={NO_KEY:'未配置模型服务',TIMEOUT:'响应超时',BAD_RESPONSE:'返回格式异常',UPSTREAM:'模型服务异常',NETWORK:'网络不可达',RATE_LIMIT:'请求过于频繁'};
+const AI_LEVEL_CLS={强:'high',中:'mid',弱:'low'};
+
+// 调用后端 AI 网关做简历×JD 匹配；任何失败返回 {ok:false,reason}，由调用方降级到规则分析。
+async function tryAIMatch(resume,jd){
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),30000);
+  try{
+    const resp=await fetch('/api/match',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({resume,jd}),
+      signal:ctrl.signal
+    });
+    if(!resp.ok){
+      let code='HTTP'+resp.status;
+      try{const b=await resp.json();if(b&&b.error)code=b.error;}catch(e){}
+      return {ok:false,reason:code};
+    }
+    const body=await resp.json();
+    if(body&&body.source==='ai'&&body.data)return {ok:true,data:body.data};
+    return {ok:false,reason:'BAD_RESPONSE'};
+  }catch(e){
+    return {ok:false,reason:(e&&e.name==='AbortError')?'TIMEOUT':'NETWORK'};
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+// 渲染 AI 结构化匹配结果（所有模型输出均经 escHtml 转义，来源徽标标记为 AI）。
+function renderAIMatch(d){
+  const score=Math.max(0,Math.min(100,Math.round(d&&d.matchScore||0)));
+  const ringColor=score>=70?'var(--ok)':score>=45?'var(--warn)':'var(--err)';
+  const circumference=2*Math.PI*52;
+  const req=(d&&d.coreRequirements)||[];
+  const matches=(d&&d.matches)||[];
+  const gaps=(d&&d.gaps)||[];
+  const sugg=(d&&d.suggestions)||[];
+  const iq=(d&&d.interviewQuestions)||[];
+  $('#matchResult').innerHTML=`
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div class="ai-source-badge">✦ AI 分析</div>
+        <span style="font-size:11px;color:var(--tx3)">结果由大模型生成，仅供求职参考</span>
+      </div>
+      <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+        <div class="ring-wrap"><div class="ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" fill="none" stroke="#f3e0ef" stroke-width="8"/><circle cx="60" cy="60" r="52" fill="none" stroke="${ringColor}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference*(1-score/100)}"/></svg><div class="ring-val"><span class="ring-num">${score}%</span><span class="ring-label">AI 匹配度</span></div></div></div>
+        <div style="flex:1;min-width:200px"><p style="font-size:13px;color:var(--tx2);line-height:1.8">${escHtml(d&&d.summary||'')}</p></div>
+      </div>
+      ${req.length?`<div class="section-title">岗位核心要求</div><div class="ai-req-list">${req.map((x,i)=>`<div class="ai-req-item"><span class="ai-req-num">${i+1}</span><span>${escHtml(x)}</span></div>`).join('')}</div>`:''}
+      ${matches.length?`<div class="section-title">匹配优势（附原文证据）</div><div class="ai-match-list">${matches.map(m=>`<div class="ai-match-item"><div class="ai-match-req">${escHtml(m.requirement)}<span class="ai-level ai-level-${AI_LEVEL_CLS[m.level]||'mid'}">${escHtml(m.level)}</span></div>${m.evidence?`<div class="ai-match-evi">📎 ${escHtml(m.evidence)}</div>`:''}</div>`).join('')}</div>`:''}
+      ${gaps.length?`<div class="section-title">能力差距（证据缺失）</div><div class="ai-gap-list">${gaps.map(g=>`<div class="ai-gap-item"><div class="ai-gap-req">${escHtml(g.requirement)}</div>${g.missing?`<div class="ai-gap-miss">⚠️ ${escHtml(g.missing)}</div>`:''}</div>`).join('')}</div><p style="font-size:10.5px;color:var(--tx3);margin:8px 0 14px;line-height:1.6">差距仅表示简历中未体现，不代表你不具备该能力。</p>`:''}
+      ${sugg.length?`<div class="section-title">简历优化建议</div><div class="match-advice-list">${sugg.map((x,i)=>`<div class="match-advice-item"><div class="mai-head"><span class="mai-num">${i+1}</span>${escHtml(x)}</div></div>`).join('')}</div>`:''}
+      ${iq.length?`<div class="section-title">针对岗位的面试问题</div><div class="ai-iq-list">${iq.map((x,i)=>`<div class="ai-iq-item"><span class="ai-iq-num">Q${i+1}</span><span>${escHtml(x)}</span></div>`).join('')}</div>`:''}
     </div>`;
 }
 
