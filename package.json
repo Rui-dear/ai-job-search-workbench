@@ -1,0 +1,12 @@
+{
+  "name": "qiuzhi-workbench",
+  "private": true,
+  "version": "0.1.0",
+  "description": "求职工作台 —— 真实 AI 简历×JD 匹配的个人作品集 Demo（单文件前端 + Vercel Function AI 网关）",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node scripts/test-gateway.cjs"
+  }
+}
