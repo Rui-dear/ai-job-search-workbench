@@ -1132,6 +1132,10 @@ select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(236,72,153,.10)}
       </div>
 
       <div id="resTabMatch" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+          <span style="font-size:12px;color:var(--tx3)">没有现成简历/JD？可先用演示数据体验完整流程</span>
+          <button class="btn btn-sm btn-ghost" onclick="useDemoMatchData()">🎬 填入演示数据</button>
+        </div>
         <div class="card mb18">
           <div class="card-title"><span class="ct-icon">📋</span>目标岗位JD</div>
           <textarea id="matchJd" rows="8" placeholder="粘贴目标岗位的完整JD；如果刚刚在“JD解读”分析过，会自动带入"></textarea>
@@ -2424,6 +2428,7 @@ async function analyzeMatch(){
   if(exp.length)actionable.push({h:'重写项目第一句',p:`把最相关的「${inferExperienceTitle(exp[0])}」从“项目名称/职责介绍”改成“做了什么 + 解决什么问题 + 结果”，让HR第一眼就能对应JD要求。`});
   if(missing.length>=2)actionable.push({h:'补足关键词证据',p:`针对「${missing.slice(0,3).join('、')}」，优先回到项目/实习经历找真实证据；有就写进经历，没有就不要为了匹配率硬加。`});
   actionable.push({h:'精简无关内容',p:'与目标岗位关系弱的经历、重复自我评价和泛化软技能往后放或删除，把有限篇幅留给JD最看重的项目、成果和能力。'});
+  lastMatchResult={source:'rule',data:{matchScore:matchRate,summary:isRealJD?'规则关键词匹配':'通用要求匹配',matched:matched.slice(),missing:missing.slice()}};
 
   $('#matchResult').innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
@@ -2439,11 +2444,61 @@ async function analyzeMatch(){
       ${missing.length?`<div class="section-title">缺失/未体现（${missing.length}）</div><div>${missing.map(m=>`<span class="tag tag-err">${escHtml(m)}</span>`).join('')}</div>`:''}
       <div style="margin-top:16px"><div class="section-title">怎么改简历</div><div class="match-advice-list">${actionable.slice(0,8).map((a,i)=>`<div class="match-advice-item"><div class="mai-head"><span class="mai-num">${i+1}</span>${escHtml(a.h)}</div><p>${escHtml(a.p)}</p></div>`).join('')}</div></div>
       ${missing.length?`<p style="font-size:10.5px;color:var(--tx3);margin-top:10px;line-height:1.6">注意：缺失关键词只代表当前文本没有体现，不代表你一定不会。没有实际经历的能力不要为了匹配率硬写。</p>`:''}
+      ${matchSaveButton()}
     </div>`;
 }
 
 const AI_ERR_TEXT={NO_KEY:'未配置模型服务',TIMEOUT:'响应超时',BAD_RESPONSE:'返回格式异常',UPSTREAM:'模型服务异常',NETWORK:'网络不可达',RATE_LIMIT:'请求过于频繁'};
 const AI_LEVEL_CLS={强:'high',中:'mid',弱:'low'};
+
+// 演示素材：虚构简历与岗位 JD，均明确标注「演示」，不包含真实个人信息。
+const DEMO_RESUME=`【演示简历 · 请替换为你的真实简历】
+李晓萌 · 求职意向：产品运营
+教育背景：示例大学 市场营销 本科 2025届
+实习经历：
+- 某互联网公司 产品运营实习生：负责用户增长活动策划，通过社群裂变带来新增用户 2 万人，并沉淀活动 SOP。
+- 某电商平台 内容运营实习生：撰写商品文案与短视频脚本，参与大促活动，活动期间 GMV 环比提升 15%。
+项目经历：
+- 校园二手交易小程序：担任产品负责人，从0到1梳理需求，用 Excel 做数据分析，上线后周活跃用户 3000+。
+技能：数据分析（Excel / SQL 基础）、活动策划、文案写作、Figma 原型、PPT`;
+
+const DEMO_JD=`【演示岗位JD · 非真实招聘信息】
+公司：星云科技（演示）
+职位：产品运营
+岗位职责：
+1. 负责产品日常运营，制定并执行用户增长与留存策略。
+2. 策划线上线下活动，跟踪活动效果并输出复盘报告。
+3. 与产品、技术、设计团队协作，推动运营需求落地。
+任职要求：
+1. 本科及以上学历，有互联网运营实习经验者优先。
+2. 具备数据分析能力，熟练使用 Excel，了解 SQL 更佳。
+3. 有活动策划经验，具备良好的沟通与协作能力。
+4. 结果导向，有较强的执行力和学习能力。`;
+
+function useDemoMatchData(){
+  saveResume(DEMO_RESUME,'演示简历');
+  const a=$('#resumeText');if(a)a.value=DEMO_RESUME;
+  const m=$('#matchResume');if(m)m.value=DEMO_RESUME;
+  const jd=$('#matchJd');if(jd)jd.value=DEMO_JD;
+  refreshMatchResumeStatus();
+  refreshMockResumeHint();
+  toast('已填入演示简历与演示JD，点击「分析简历 × JD匹配」即可体验 AI 分析','ok');
+}
+
+let lastMatchResult=null;
+function saveMatchSnapshot(){
+  if(!lastMatchResult)return;
+  const resume=getResumeText();
+  const jd=($('#matchJd')&&$('#matchJd').value||'').trim();
+  const existing=Store.get('aiMatchHistory',[]);
+  const hist=Array.isArray(existing)?existing.slice():[];
+  hist.unshift({savedAt:new Date().toISOString(),source:lastMatchResult.source,resume,jd,result:lastMatchResult.data});
+  if(hist.length>20)hist.length=20;
+  if(Store.set('aiMatchHistory',hist))toast('分析结果已保存（含JD与简历快照）','ok');
+}
+function matchSaveButton(){
+  return '<div style="margin-top:16px"><button class="btn btn-ghost btn-block" onclick="saveMatchSnapshot()">💾 保存本次分析结果</button></div>';
+}
 
 // 调用后端 AI 网关做简历×JD 匹配；任何失败返回 {ok:false,reason}，由调用方降级到规则分析。
 async function tryAIMatch(resume,jd){
@@ -2473,6 +2528,7 @@ async function tryAIMatch(resume,jd){
 
 // 渲染 AI 结构化匹配结果（所有模型输出均经 escHtml 转义，来源徽标标记为 AI）。
 function renderAIMatch(d){
+  lastMatchResult={source:'ai',data:d};
   const score=Math.max(0,Math.min(100,Math.round(d&&d.matchScore||0)));
   const ringColor=score>=70?'var(--ok)':score>=45?'var(--warn)':'var(--err)';
   const circumference=2*Math.PI*52;
@@ -2496,6 +2552,7 @@ function renderAIMatch(d){
       ${gaps.length?`<div class="section-title">能力差距（证据缺失）</div><div class="ai-gap-list">${gaps.map(g=>`<div class="ai-gap-item"><div class="ai-gap-req">${escHtml(g.requirement)}</div>${g.missing?`<div class="ai-gap-miss">⚠️ ${escHtml(g.missing)}</div>`:''}</div>`).join('')}</div><p style="font-size:10.5px;color:var(--tx3);margin:8px 0 14px;line-height:1.6">差距仅表示简历中未体现，不代表你不具备该能力。</p>`:''}
       ${sugg.length?`<div class="section-title">简历优化建议</div><div class="match-advice-list">${sugg.map((x,i)=>`<div class="match-advice-item"><div class="mai-head"><span class="mai-num">${i+1}</span>${escHtml(x)}</div></div>`).join('')}</div>`:''}
       ${iq.length?`<div class="section-title">针对岗位的面试问题</div><div class="ai-iq-list">${iq.map((x,i)=>`<div class="ai-iq-item"><span class="ai-iq-num">Q${i+1}</span><span>${escHtml(x)}</span></div>`).join('')}</div>`:''}
+      ${matchSaveButton()}
     </div>`;
 }
 
