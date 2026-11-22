@@ -109,6 +109,23 @@ async function main() {
   r = await call({ body: { resume: VALID_RESUME, jd: VALID_JD } });
   ok('OpenAI 包装格式 -> 正确解包 content', r.status === 200 && r.body.data && r.body.data.matchScore === 78 && r.body.data.summary === '整体匹配良好', 'data=' + JSON.stringify(r.body.data));
 
+  // 7c. 匹配分健壮解析：模型可能输出 "82分" / "约75左右" / 0.82 等非纯数字写法
+  const scoreCases = [['82', 82], ['"82"', 82], ['"82分"', 82], ['"约75左右"', 75], ['0.82', 82], ['0', 0]];
+  for (const [rawScore, want] of scoreCases) {
+    global.fetch = async () => ({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({ choices: [{ index: 0, message: { role: 'assistant', content: '{"summary":"s","matchScore":' + rawScore + ',"coreRequirements":[],"matches":[],"gaps":[],"suggestions":[],"interviewQuestions":[]}' } }] }),
+    });
+    const rr = await call({ body: { resume: VALID_RESUME, jd: VALID_JD } });
+    ok('匹配分 ' + rawScore + ' -> ' + want, rr.status === 200 && rr.body.data && rr.body.data.matchScore === want, 'got ' + JSON.stringify(rr.body.data && rr.body.data.matchScore));
+  }
+  global.fetch = async () => ({
+    ok: true, status: 200,
+    text: async () => JSON.stringify({ choices: [{ index: 0, message: { role: 'assistant', content: '{"summary":"s","coreRequirements":[],"matches":[],"gaps":[],"suggestions":[],"interviewQuestions":[]}' } }] }),
+  });
+  r = await call({ body: { resume: VALID_RESUME, jd: VALID_JD } });
+  ok('matchScore 缺失 -> 0', r.status === 200 && r.body.data && r.body.data.matchScore === 0, 'got ' + JSON.stringify(r.body.data));
+
   // 8. 上游非 200
   global.fetch = async () => ({ ok: false, status: 401, text: async () => 'Unauthorized' });
   r = await call({ body: { resume: VALID_RESUME, jd: VALID_JD } });

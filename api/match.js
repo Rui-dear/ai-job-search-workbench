@@ -48,7 +48,7 @@ const SYSTEM_PROMPT = `你是一名资深求职辅导顾问。根据用户提供
 只输出一个 JSON 对象（不要输出 markdown 代码块、不要输出任何解释性文字），结构如下：
 {
   "summary": "一句话总评",
-  "matchScore": 0到100的整数,
+  "matchScore": 必须是一个 0 到 100 之间的纯数字（整数，不带“分”“%”等单位、不带引号，例如 82）,
   "coreRequirements": ["岗位核心要求1", "岗位核心要求2", "…最多6条"],
   "matches": [{"requirement": "岗位要求", "evidence": "简历原文中的证据", "level": "强|中|弱"} …最多6条],
   "gaps": [{"requirement": "岗位要求", "missing": "为什么简历里没有体现/缺哪类证据"} …最多6条],
@@ -109,6 +109,21 @@ function arr(v, max) {
   return v.map((x) => String(x == null ? '' : x)).map((x) => x.trim()).filter(Boolean).slice(0, max);
 }
 
+// 解析模型返回的匹配分：容忍 82 / "82" / "82分" / "75左右" / "0.82"（0-1 小数按百分比）等写法。
+// 解析不出有效数字时返回 0，调用方再用 0-100 夹取。
+function parseScore(v) {
+  let n;
+  if (typeof v === 'number' && isFinite(v)) {
+    n = v;
+  } else {
+    const m = String(v == null ? '' : v).trim().match(/\d+(?:\.\d+)?/);
+    if (!m) return 0;
+    n = Number(m[0]);
+  }
+  if (n > 0 && n < 1) return Math.round(n * 100); // 0-1 小数视为百分比
+  return Math.round(n);
+}
+
 function parseAndValidate(text) {
   const raw = extractJson(text);
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -128,7 +143,7 @@ function parseAndValidate(text) {
     }
     return { requirement: '', missing: '' };
   }).filter((g) => g.requirement);
-  const score = Math.max(0, Math.min(100, Math.round(Number(raw.matchScore) || 0)));
+  const score = Math.max(0, Math.min(100, parseScore(raw.matchScore)));
   return {
     summary: String(raw.summary || '').trim(),
     matchScore: score,
