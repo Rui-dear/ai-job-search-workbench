@@ -98,6 +98,17 @@ async function main() {
   ok('成功 -> 结构化 data', r.status === 200 && r.body.data && r.body.data.matchScore === 78 && Array.isArray(r.body.data.matches), 'data=' + JSON.stringify(r.body.data));
   ok('成功 -> matchScore 夹在 0-100', r.body.data && r.body.data.matchScore >= 0 && r.body.data.matchScore <= 100);
 
+  // 7b. 成功路径：OpenAI 兼容包装格式（choices[0].message.content）
+  global.fetch = async () => ({
+    ok: true, status: 200,
+    text: async () => JSON.stringify({
+      id: 'chatcmpl-123', object: 'chat.completion', model: 'deepseek-chat',
+      choices: [{ index: 0, message: { role: 'assistant', content: VALID_AI_JSON() }, finish_reason: 'stop' }],
+    }),
+  });
+  r = await call({ body: { resume: VALID_RESUME, jd: VALID_JD } });
+  ok('OpenAI 包装格式 -> 正确解包 content', r.status === 200 && r.body.data && r.body.data.matchScore === 78 && r.body.data.summary === '整体匹配良好', 'data=' + JSON.stringify(r.body.data));
+
   // 8. 上游非 200
   global.fetch = async () => ({ ok: false, status: 401, text: async () => 'Unauthorized' });
   r = await call({ body: { resume: VALID_RESUME, jd: VALID_JD } });

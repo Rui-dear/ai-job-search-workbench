@@ -91,6 +91,19 @@ function extractJson(text) {
   return null;
 }
 
+// OpenAI 兼容接口把模型输出包在 choices[0].message.content 里（通常是 JSON 字符串）。
+// 这里解包取真正的模型输出文本；若非该结构（如 mock 直接返回 JSON）则原样返回。
+function extractContent(text) {
+  const s = String(text || '').trim();
+  try {
+    const wrapper = JSON.parse(s);
+    const c = wrapper && wrapper.choices && wrapper.choices[0]
+      && wrapper.choices[0].message && wrapper.choices[0].message.content;
+    if (typeof c === 'string' && c.trim()) return c;
+  } catch (e) { /* 不是 JSON，按原样返回 */ }
+  return s;
+}
+
 function arr(v, max) {
   if (!Array.isArray(v)) return [];
   return v.map((x) => String(x == null ? '' : x)).map((x) => x.trim()).filter(Boolean).slice(0, max);
@@ -157,7 +170,7 @@ async function callLLM(resume, jd) {
     });
     if (!resp.ok) return { error: 'UPSTREAM', status: resp.status };
     const text = await resp.text();
-    const data = parseAndValidate(text);
+    const data = parseAndValidate(extractContent(text));
     if (!data) return { error: 'BAD_RESPONSE' };
     return { data };
   } catch (e) {

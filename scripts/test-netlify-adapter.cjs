@@ -101,12 +101,16 @@ async function run() {
     global.fetch = async (url, opts) => {
       ok('fetch 请求头含 Bearer', opts.headers.Authorization === 'Bearer sk-test-fake', opts.headers.Authorization);
       ok('fetch 请求体含 resume/jd', opts.body.includes('x'.repeat(40)) && opts.body.includes('y'.repeat(30)), '');
+      // 模拟 OpenAI 兼容接口的真实包装格式（模型输出在 choices[0].message.content）
       return { ok: true, status: 200, text: async () => JSON.stringify({
-        summary: '整体匹配良好', matchScore: 78,
-        coreRequirements: ['数据分析'],
-        matches: [{ requirement: '数据分析', evidence: '负责数据分析', level: '强' }],
-        gaps: [{ requirement: '活动策划', missing: '简历未体现' }],
-        suggestions: ['量化成果'], interviewQuestions: ['说说你的项目'],
+        id: 'chatcmpl-123', object: 'chat.completion', model: 'deepseek-chat',
+        choices: [{ index: 0, message: { role: 'assistant', content: JSON.stringify({
+          summary: '整体匹配良好', matchScore: 78,
+          coreRequirements: ['数据分析'],
+          matches: [{ requirement: '数据分析', evidence: '负责数据分析', level: '强' }],
+          gaps: [{ requirement: '活动策划', missing: '简历未体现' }],
+          suggestions: ['量化成果'], interviewQuestions: ['说说你的项目'],
+        }) }, finish_reason: 'stop' }],
       }) };
     };
     const r = await handler(event('POST', VALID));
