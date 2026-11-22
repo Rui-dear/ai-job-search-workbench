@@ -30,14 +30,14 @@
 浏览器（单文件 index.html + localStorage）
         │  POST /api/match  {resume, jd}
         ▼
-Vercel Function（api/match.js · AI 网关）
+无服务函数 AI 网关（Netlify: netlify/functions/match.js · 复用 api/match.js）
         │  OpenAI 兼容接口
         ▼
 DeepSeek（可通过环境变量替换为任意 OpenAI 兼容服务）
 ```
 
 - **前端**：原生 HTML / CSS / JS 单文件，localStorage 本地存储，无框架、无数据库、无账号。
-- **后端**：Vercel Function 薄网关，仅托管 API Key（存环境变量，永不进前端 / Git），带输入长度限制、超时、按 IP 限流。
+- **后端**：无服务函数薄网关（同时支持 Netlify 与 Vercel，适配层复用同一份 `api/match.js` 业务逻辑），仅托管 API Key（存环境变量，永不进前端 / Git），带输入长度限制、超时、按 IP 限流。
 - **模型**：DeepSeek（OpenAI 兼容）。
 
 ## 本地运行
@@ -54,19 +54,24 @@ npm run dev        # 或 node scripts/dev-server.cjs
 
 > 不填 Key 也能运行：AI 请求会返回 503，前端自动降级为本地规则分析。
 
-## 部署到 Vercel
+## 部署到 Netlify
 
-1. 将仓库推送到 GitHub。
-2. 在 Vercel 导入该仓库（Framework Preset 选「Other」）。
-3. 在项目 **Settings → Environment Variables** 配置：
+1. 将仓库推送到 GitHub（`master` 分支）。
+2. 在 Netlify 导入该仓库：**Add new site → Import an existing project** → 选择本仓库。构建命令与发布目录已由 `netlify.toml` 配好（`node scripts/build-dist.cjs` → `dist`），无需手动设置。
+3. 在项目 **Site configuration → Environment variables** 配置：
 
-   | 变量 | 值 |
-   |---|---|
-   | `LLM_API_KEY` | 你的 DeepSeek API Key |
-   | `LLM_BASE_URL` | `https://api.deepseek.com` |
-   | `LLM_MODEL` | `deepseek-chat` |
+   | 变量 | 值 | 说明 |
+   |---|---|---|
+   | `LLM_API_KEY` | 你的 DeepSeek API Key | 必填 |
+   | `LLM_BASE_URL` | `https://api.deepseek.com` | 可省略（有默认值） |
+   | `LLM_MODEL` | `deepseek-chat` | 可省略（有默认值） |
+   | `LLM_TIMEOUT_MS` | `8000` | **Netlify 建议设置**，见下方说明 |
 
-4. Deploy，即可获得 `https://<项目名>.vercel.app` 在线地址。
+4. 配好环境变量后 **Deploy / 重新部署**，即可获得 `https://<站点名>.netlify.app` 在线地址。
+
+> **超时说明**：Netlify 同步函数默认执行上限约 **10 秒**（Pro 计划可至 26 秒），而网关默认模型调用超时为 25 秒。为了让请求在 Netlify 杀掉函数**之前**主动超时并返回清晰的 504（前端据此降级到规则分析），建议在 Netlify 将 `LLM_TIMEOUT_MS` 设为 `8000`（8 秒）。DeepSeek 对演示数据的结构化输出通常在数秒内完成，8 秒内可返回即走真实 AI；若超过则干净降级，不会崩溃。
+
+> **Vercel 仍可用**：原 `api/match.js` + `vercel.json` 未删除，若仍想用 Vercel 部署，`LLM_TIMEOUT_MS` 可保持默认 25000（Vercel 函数上限 30 秒）。
 
 ## 环境变量
 
@@ -88,20 +93,24 @@ npm run dev        # 或 node scripts/dev-server.cjs
 ## 目录结构
 
 ```
-index.html              # 前端单文件（含 CSS / JS）
-api/match.js            # AI 网关（Vercel Function）
-scripts/dev-server.cjs  # 本地开发服务器
-scripts/test-*.cjs      # 测试
-vercel.json             # Vercel 配置
-.env.example            # 环境变量模板（无真实 Key）
+index.html                  # 前端单文件（含 CSS / JS）
+api/match.js                # AI 网关业务逻辑（单一事实来源，Vercel 版本）
+netlify/functions/match.js  # Netlify Function 适配层（复用 api/match.js）
+netlify.toml                # Netlify 配置（构建 / 函数 / 重写）
+scripts/build-dist.cjs      # 构建 dist 发布目录（仅复制静态文件）
+scripts/dev-server.cjs      # 本地开发服务器
+scripts/test-*.cjs          # 测试
+vercel.json                 # Vercel 配置（保留，Netlify 不受影响）
+.env.example                # 环境变量模板（无真实 Key）
 ```
 
 ## 测试
 
 ```bash
-npm test              # 网关 + 前端 AI 接入测试
+npm test              # 网关 + 前端 AI 接入 + Netlify 适配层测试
 npm run test:gateway  # 仅网关
 npm run test:frontend # 仅前端
+npm run test:netlify  # 仅 Netlify 适配层
 ```
 
 ## 截图

@@ -1,0 +1,18 @@
+# Netlify 配置：静态发布 + Netlify Functions + /api/match 重写
+# 说明：index.html 为自包含单文件（无本地静态资源依赖），
+#       构建时仅复制 index.html 到 dist，避免把后端源码 / 脚本 / 备份发布出去。
+
+[build]
+  command = "node scripts/build-dist.cjs"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# 前端仍请求 /api/match，这里用 200 重写（代理）转发到 Netlify Function，
+# 保留请求方法与 JSON body，前端零改动。
+[[redirects]]
+  from = "/api/match"
+  to = "/.netlify/functions/match"
+  status = 200
